@@ -2,146 +2,182 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Total Share</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>P2P Turbo | Sync Download</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --me-bg: #dcf8c6; --them-bg: #ffffff; --win-bg: #e5ddd5; }
-        body { font-family: 'Segoe UI', sans-serif; background: #222; margin: 0; display: flex; justify-content: center; height: 100vh; }
-        .app { width: 100%; max-width: 450px; background: var(--win-bg); display: flex; flex-direction: column; }
+        :root { --primary: #007bff; --success: #28a745; --dark: #1e1e2d; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
         
-        .header { background: #075e54; color: white; padding: 15px; text-align: center; }
-        #status { font-size: 0.8em; color: #25d366; }
+        /* Header */
+        .header { background: var(--dark); color: white; padding: 12px; text-align: center; border-bottom: 2px solid var(--primary); }
+        #status { font-size: 0.75rem; color: #00ff88; font-weight: bold; }
 
-        #chat { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .bubble { padding: 10px; border-radius: 10px; max-width: 80%; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-        .me { align-self: flex-end; background: var(--me-bg); }
-        .them { align-self: flex-start; background: var(--them-bg); }
+        /* Conexão */
+        .conn-area { background: #f8f9fa; padding: 15px; border-bottom: 1px solid #ddd; }
+        .id-box { background: #fff; padding: 10px; border-radius: 8px; border: 1px solid var(--primary); color: var(--primary); font-family: monospace; text-align: center; margin-bottom: 10px; font-size: 16px; }
+        .conn-form { display: flex; gap: 8px; }
+        input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; outline: none; }
+        button { border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; background: var(--primary); color: white; }
 
-        .download-btn { 
-            display: block; background: #25d366; color: white; text-align: center; 
-            padding: 10px; border-radius: 5px; text-decoration: none; font-weight: bold; margin-top: 5px;
+        /* Chat */
+        #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #e5ddd5; }
+        .bubble { padding: 12px; border-radius: 12px; max-width: 85%; font-size: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative; }
+        .me { align-self: flex-end; background: #dcf8c6; }
+        .them { align-self: flex-start; background: white; }
+
+        /* LINK AZUL SINCRONIZADO */
+        .download-ready {
+            color: #0000FF !important;
+            text-decoration: underline !important;
+            font-weight: bold;
+            font-size: 17px;
+            display: inline-block;
         }
 
-        .controls { background: #f0f0f0; padding: 10px; display: flex; flex-direction: column; gap: 5px; }
-        .row { display: flex; gap: 5px; }
-        input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
-        button { background: #128c7e; color: white; border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer; }
-        
-        .id-display { font-size: 10px; text-align: center; padding: 5px; background: #eee; border-bottom: 1px solid #ddd; }
+        /* Barra de Progresso Sincronizada */
+        .progress-container { width: 100%; background: #eee; height: 8px; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--success); width: 0%; transition: width 0.1s linear; }
+
+        /* Footer */
+        .footer { padding: 12px; background: white; border-top: 1px solid #ddd; display: flex; gap: 8px; align-items: center; }
+        #msg-input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #ddd; font-size: 16px; }
     </style>
 </head>
 <body>
 
-<div class="app">
-    <div class="header">
-        <b>P2P Turbo Chat</b><br>
-        <span id="status">Iniciando...</span>
-    </div>
-    
-    <div class="id-display" id="my-id" onclick="copyId()">Seu ID: Carregando... (Clique para copiar)</div>
+<div class="header">
+    <strong>TURBO P2P SHARE</strong>
+    <div id="status">INICIANDO...</div>
+</div>
 
-    <div id="chat">
-        <div class="bubble them">Cole o ID do parceiro abaixo para conectar e trocar arquivos.</div>
-    </div>
+<div class="conn-area" id="conn-area">
+    <div class="id-box" id="my-id">...</div>
+    <form class="conn-form" onsubmit="conectar(event)">
+        <input type="text" id="remote-id" placeholder="ID do parceiro..." autocomplete="off">
+        <button type="submit">LIGAR</button>
+    </form>
+</div>
 
-    <div class="controls" id="setup">
-        <div class="row">
-            <input type="text" id="remote-id" placeholder="ID do parceiro...">
-            <button onclick="conectar()">Conectar</button>
-        </div>
-    </div>
+<div id="chat"></div>
 
-    <div class="controls">
-        <div class="row">
-            <input type="file" id="file-input" style="display:none" onchange="enviarArquivo()">
-            <button onclick="document.getElementById('file-input').click()">📎</button>
-            <input type="text" id="msg-input" placeholder="Mensagem..." onkeypress="if(event.key==='Enter') enviarTexto()">
-            <button onclick="enviarTexto()">➤</button>
-        </div>
-    </div>
+<div class="footer">
+    <input type="file" id="file-input" style="display:none" onchange="enviarArquivo()">
+    <button onclick="document.getElementById('file-input').click()" style="background:#6c757d">📎</button>
+    <input type="text" id="msg-input" placeholder="Mensagem..." autocomplete="off">
+    <button onclick="enviarTexto()" id="send-btn">➤</button>
 </div>
 
 <script>
-    const peer = new Peer({ config: {'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }]} });
+    const peer = new Peer();
     let conn;
+    let fileChunks = {};
 
     peer.on('open', id => {
-        document.getElementById('my-id').innerText = "SEU ID: " + id;
-        document.getElementById('status').innerText = "Aguardando parceiro...";
+        document.getElementById('my-id').innerText = id;
+        document.getElementById('status').innerText = "ONLINE";
     });
 
-    // RECEBER CONEXÃO
-    peer.on('connection', c => {
-        conn = c;
-        vincularEventos();
-    });
+    peer.on('connection', c => { conn = c; setup(); });
 
-    // INICIAR CONEXÃO
-    function conectar() {
-        const id = document.getElementById('remote-id').value;
-        if (!id) return alert("Insira o ID!");
+    function conectar(e) {
+        if(e) e.preventDefault();
+        const id = document.getElementById('remote-id').value.trim();
+        if(!id) return;
         conn = peer.connect(id);
-        vincularEventos();
+        setup();
     }
 
-    function vincularEventos() {
+    function setup() {
         conn.on('open', () => {
-            document.getElementById('status').innerText = "CONECTADO!";
-            document.getElementById('setup').style.display = "none";
-            addBubble("Sistema", "Conexão P2P ativa!", "them");
+            document.getElementById('status').innerText = "CONECTADO";
+            document.getElementById('conn-area').style.display = 'none';
         });
 
         conn.on('data', data => {
-            if (data.type === 'text') {
-                addBubble("Amigo", data.val, "them");
-            } else if (data.type === 'file') {
-                // Lógica de Download
-                const blob = new Blob([data.payload], { type: data.fileType });
-                const url = URL.createObjectURL(blob);
-                const btnHtml = `<br><a href="${url}" download="${data.fileName}" class="download-btn">⬇️ BAIXAR ${data.fileName}</a>`;
-                addBubble("Amigo", "Enviou um arquivo:" + btnHtml, "them", true);
+            if (data.type === 'text') addBubble("Amigo", data.val, "them");
+            
+            if (data.type === 'file-start') {
+                fileChunks[data.fileId] = { name: data.name, chunks: [], total: data.totalChunks };
+                addBubble("Ficheiro", `Recebendo: ${data.name}`, "them", data.fileId);
+            }
+            
+            if (data.type === 'file-chunk') {
+                const info = fileChunks[data.fileId];
+                info.chunks[data.index] = data.chunk;
+                
+                // Cálculo de progresso sincronizado
+                const recebidos = info.chunks.filter(n => n).length;
+                const p = Math.floor((recebidos / info.total) * 100);
+                
+                // Atualiza a barra
+                const fill = document.getElementById(`fill-${data.fileId}`);
+                if(fill) fill.style.width = p + '%';
+
+                if (recebidos === info.total) {
+                    const blob = new Blob(info.chunks);
+                    const url = URL.createObjectURL(blob);
+                    
+                    // TRANSFORMAÇÃO FINAL PARA AZUL
+                    const textContainer = document.getElementById(`text-${data.fileId}`);
+                    const progressContainer = document.getElementById(`prog-cont-${data.fileId}`);
+                    
+                    textContainer.innerHTML = `<a href="${url}" download="${info.name}" class="download-ready">⬇ BAIXAR AGORA: ${info.name}</a>`;
+                    progressContainer.style.display = 'none'; // Esconde a barra
+                    
+                    delete fileChunks[data.fileId]; // Limpa memória
+                }
             }
         });
     }
 
+    async function enviarArquivo() {
+        const file = document.getElementById('file-input').files[0];
+        if (!conn || !file) return;
+        
+        const fileId = 'f' + Date.now();
+        const chunkSize = 64000;
+        const total = Math.ceil(file.size / chunkSize);
+        
+        addBubble("Eu", `Enviando: ${file.name}`, "me", fileId);
+        conn.send({ type: 'file-start', fileId, name: file.name, totalChunks: total });
+
+        for (let i = 0; i < total; i++) {
+            const buf = await file.slice(i * chunkSize, (i + 1) * chunkSize).arrayBuffer();
+            conn.send({ type: 'file-chunk', fileId, index: i, chunk: buf });
+            
+            const p = Math.floor(((i + 1) / total) * 100);
+            const fill = document.getElementById(`fill-${fileId}`);
+            if(fill) fill.style.width = p + '%';
+        }
+    }
+
     function enviarTexto() {
         const input = document.getElementById('msg-input');
-        if (!conn || !input.value) return;
+        if (!conn || !input.value.trim()) return;
         conn.send({ type: 'text', val: input.value });
         addBubble("Eu", input.value, "me");
         input.value = "";
     }
 
-    function enviarArquivo() {
-        const file = document.getElementById('file-input').files[0];
-        if (!conn || !file) return;
-
-        addBubble("Eu", "Enviando arquivo: " + file.name, "me");
-
-        // Enviando o arquivo como ArrayBuffer (bruto)
-        conn.send({
-            type: 'file',
-            payload: file,
-            fileName: file.name,
-            fileType: file.type
-        });
-    }
-
-    function addBubble(user, text, side, isHtml = false) {
+    function addBubble(u, t, s, id = null) {
         const div = document.createElement('div');
-        div.className = `bubble ${side}`;
-        if (isHtml) div.innerHTML = text; else div.innerText = text;
+        div.className = `bubble ${s}`;
+        
+        // Estrutura interna para permitir a mudança dinâmica
+        div.innerHTML = `
+            <small style="display:block; opacity:0.5; font-size:10px; margin-bottom:4px;">${u}</small>
+            <div id="text-${id ? id : ''}">${t}</div>
+            ${id ? `<div class="progress-container" id="prog-cont-${id}"><div class="progress-fill" id="fill-${id}"></div></div>` : ''}
+        `;
+        
         document.getElementById('chat').appendChild(div);
         document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     }
 
-    function copyId() {
-        const idText = document.getElementById('my-id').innerText.split(": ")[1];
-        navigator.clipboard.writeText(idText);
-        alert("ID copiado!");
-    }
+    // Enter para enviar
+    document.getElementById('msg-input').onkeypress = (e) => { if(e.key==='Enter') enviarTexto(); };
 </script>
 </body>
-              </html>
-              
+</html>
